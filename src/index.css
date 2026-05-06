@@ -1,0 +1,33 @@
+/* Tailwind v4 — cukup satu baris ini, tidak perlu @tailwind directives */
+@import "tailwindcss";
+
+/* Custom CSS variables untuk theming app */
+@layer base {
+  :root {
+    --sidebar-width: 220px;
+  }
+
+  body {
+    /* Prevent text selection saat klik cepat (UX desktop) */
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Allow selection hanya di elemen teks yang memang perlu */
+  input, textarea, [data-selectable] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* Scrollbar tipis agar tidak mengganggu layout */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.7 0 0 / 0.3);
+    border-radius: 2px;
+  }
+}

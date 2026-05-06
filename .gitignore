@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-electron/
+release/
+.env
+*.log
+
+# Jangan pernah commit credentials Codex
+~/.codex/
+~/.codex-manager/
