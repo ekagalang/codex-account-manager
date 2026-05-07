@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Account } from '@/types'
+import type { Account, AccountUsage } from '@/types'
 
 // --- SUB COMPONENTS ---
 
@@ -361,16 +361,35 @@ interface AccountCardProps {
   onDelete: () => void
 }
 
-function AccountCard({ account, isActive, isSwitching, onSwitch, onDelete }: AccountCardProps) {
+interface AccountCardProps {
+  account: Account
+  isActive: boolean
+  isSwitching: boolean
+  usage?: AccountUsage
+  usageLoading: boolean
+  onSwitch: () => void
+  onDelete: () => void
+}
+
+function AccountCard({
+  account,
+  isActive,
+  isSwitching,
+  usage,
+  usageLoading,
+  onSwitch,
+  onDelete,
+}: AccountCardProps) {
   const lastUsed = account.lastUsed
     ? new Date(account.lastUsed).toLocaleDateString('id-ID', {
-        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+        day: 'numeric', month: 'short',
+        hour: '2-digit', minute: '2-digit',
       })
     : null
 
   return (
     <div className={[
-      'flex items-center gap-3 bg-white dark:bg-zinc-900 border rounded-xl px-4 py-3 transition-colors',
+      'flex items-start gap-3 bg-white dark:bg-zinc-900 border rounded-xl px-4 py-3 transition-colors',
       isActive
         ? 'border-zinc-900 dark:border-zinc-100'
         : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600',
@@ -388,9 +407,11 @@ function AccountCard({ account, isActive, isSwitching, onSwitch, onDelete }: Acc
             Last used {lastUsed}
           </p>
         )}
+        {/* Usage badges */}
+        <UsageBadges usage={usage} loading={usageLoading} />
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
         {isActive ? (
           <span className="text-xs px-2.5 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-medium">
             Active
@@ -404,8 +425,8 @@ function AccountCard({ account, isActive, isSwitching, onSwitch, onDelete }: Acc
             {isSwitching ? (
               <span className="flex items-center gap-1.5">
                 <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
                 </svg>
                 Switching...
               </span>
@@ -413,12 +434,10 @@ function AccountCard({ account, isActive, isSwitching, onSwitch, onDelete }: Acc
           </button>
         )}
 
-        {/* Tombol delete — tidak muncul kalau akun sedang aktif */}
         {!isActive && (
           <button
             onClick={onDelete}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-300 dark:text-zinc-600 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
-            title="Hapus akun"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -430,6 +449,72 @@ function AccountCard({ account, isActive, isSwitching, onSwitch, onDelete }: Acc
   )
 }
 
+function UsageBadges({
+  usage,
+  loading,
+}: {
+  usage: AccountUsage | undefined
+  loading: boolean
+}) {
+  if (loading) {
+    return (
+      <div className="flex gap-1.5 mt-2">
+        <div className="h-4 w-14 bg-zinc-100 dark:bg-zinc-800 rounded-full animate-pulse" />
+        <div className="h-4 w-14 bg-zinc-100 dark:bg-zinc-800 rounded-full animate-pulse" />
+      </div>
+    )
+  }
+
+  if (!usage || usage.error || (!usage.fiveHour && !usage.weekly)) {
+    return null
+  }
+
+  const getBadgeStyle = (percent: number) => {
+    if (percent >= 90) return 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
+    if (percent >= 70) return 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+    return 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'
+  }
+
+  const formatReset = (seconds: number) => {
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m`
+    if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
+    return `${Math.round(seconds / 86400)}d`
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+      {/* Limit reached badge */}
+      {usage.limitReached && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 font-medium">
+          LIMIT
+        </span>
+      )}
+
+      {/* 5 jam window */}
+      {usage.fiveHour && (
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1 ${getBadgeStyle(usage.fiveHour.usedPercent)}`}>
+          <span>⚡</span>
+          <span>{usage.fiveHour.usedPercent}%</span>
+          {usage.fiveHour.usedPercent > 0 && (
+            <span className="opacity-60">· {formatReset(usage.fiveHour.resetAfterSeconds)}</span>
+          )}
+        </span>
+      )}
+
+      {/* Weekly window */}
+      {usage.weekly && (
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1 ${getBadgeStyle(usage.weekly.usedPercent)}`}>
+          <span>📅</span>
+          <span>{usage.weekly.usedPercent}%</span>
+          {usage.weekly.usedPercent > 0 && (
+            <span className="opacity-60">· {formatReset(usage.weekly.resetAfterSeconds)}</span>
+          )}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // --- MAIN PAGE ---
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -437,7 +522,28 @@ export default function AccountsPage() {
   const [switching, setSwitching] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [switchedEmail, setSwitchedEmail] = useState<string | null>(null)
+  const [usageMap, setUsageMap] = useState<Record<string, AccountUsage>>({})
+  const [usageLoading, setUsageLoading] = useState(false)
+
+    const loadUsage = useCallback(async (accs: Account[]) => {
+    if (accs.length === 0) return
+    setUsageLoading(true)
+    try {
+      // Fetch semua akun paralel
+      const results = await Promise.allSettled(
+        accs.map(acc => window.electronAPI.getUsageByEmail(acc.email))
+      )
+      const map: Record<string, AccountUsage> = {}
+      accs.forEach((acc, i) => {
+        const r = results[i]
+        map[acc.email] = r.status === 'fulfilled' ? r.value : { error: 'Failed' }
+      })
+      setUsageMap(map)
+    } finally {
+      setUsageLoading(false)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     const [accs, active] = await Promise.all([
@@ -446,13 +552,23 @@ export default function AccountsPage() {
     ])
     setAccounts(accs)
     setActiveEmail(active)
-  }, [])
+    // Fetch usage setelah dapat list akun
+    loadUsage(accs)
+  }, [loadUsage])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    // Listen switch dari system tray
+    window.electronAPI.onTraySwitch((email) => {
+      load()
+      showSuccess(email)
+    })
+  }, [load])
 
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(null), 3000)
+  const showSuccess = (email: string) => {
+    setSwitchedEmail(email)
+    // Auto-dismiss setelah 10 detik
+    setTimeout(() => setSwitchedEmail(null), 10_000)
   }
 
   const handleSwitch = async (email: string) => {
@@ -461,7 +577,7 @@ export default function AccountsPage() {
     try {
       await window.electronAPI.switchAccount(email)
       await load()
-      showSuccess(`Switched ke ${email}`)
+      showSuccess(email)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -493,15 +609,27 @@ export default function AccountsPage() {
       {/* Topbar */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Accounts</p>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-zinc-600 dark:text-zinc-300"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Save current account
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => loadUsage(accounts)}
+            disabled={usageLoading}
+            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors disabled:opacity-30"
+            title="Refresh usage"
+          >
+            <svg className={`w-3.5 h-3.5 ${usageLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-zinc-600 dark:text-zinc-300"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Save current account
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -526,12 +654,64 @@ export default function AccountsPage() {
         )}
 
         {/* Success toast */}
-        {successMsg && (
-          <div className="flex items-center gap-2 mb-4 px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
-            <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-            </svg>
-            <p className="text-xs text-green-600 dark:text-green-400">{successMsg}</p>
+        {switchedEmail && (
+          <div className="mb-4 border border-green-200 dark:border-green-800 rounded-xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-2.5 px-4 py-3 bg-green-50 dark:bg-green-900/20">
+              <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+              <p className="text-xs font-medium text-green-700 dark:text-green-400 flex-1">
+                Berhasil switch ke <span className="font-mono">{switchedEmail}</span>
+              </p>
+              <button
+                onClick={() => setSwitchedEmail(null)}
+                className="text-green-400 hover:text-green-600 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Restart info */}
+            <div className="px-4 py-3 bg-white dark:bg-zinc-900 border-t border-green-100 dark:border-green-900">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">
+                Agar perubahan akun berlaku di Codex CLI:
+              </p>
+              <ol className="space-y-1.5">
+                {[
+                  { step: '1', text: 'Tutup semua sesi Codex CLI yang sedang berjalan', kbd: 'Ctrl+C' },
+                  { step: '2', text: 'Jalankan ulang Codex CLI', kbd: 'codex' },
+                ].map(item => (
+                  <li key={item.step} className="flex items-center gap-2.5">
+                    <span className="w-4 h-4 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[10px] font-medium flex items-center justify-center shrink-0">
+                      {item.step}
+                    </span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 flex-1">{item.text}</span>
+                    <code className="text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-1.5 py-0.5 rounded font-mono shrink-0">
+                      {item.kbd}
+                    </code>
+                  </li>
+                ))}
+              </ol>
+
+              {/* Quick copy command */}
+              <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+                <code className="text-xs font-mono text-zinc-600 dark:text-zinc-300 flex-1">
+                  codex
+                </code>
+                <button
+                  onClick={() => navigator.clipboard.writeText('codex')}
+                  className="text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.277c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                  </svg>
+                  copy
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -553,6 +733,8 @@ export default function AccountsPage() {
                 account={acc}
                 isActive={acc.email === activeEmail}
                 isSwitching={switching === acc.email}
+                usage={usageMap[acc.email]}
+                usageLoading={usageLoading}
                 onSwitch={() => handleSwitch(acc.email)}
                 onDelete={() => handleDelete(acc.email)}
               />

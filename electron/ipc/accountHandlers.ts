@@ -134,23 +134,26 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
       return { success: true, alreadyActive: true }
     }
 
-    const targetAuthPath = path.join(MANAGER_DIR, sanitizeEmail(email), 'auth.json')
+    const targetAuthPath = path.join(
+      MANAGER_DIR,
+      sanitizeEmail(email),
+      'auth.json'
+    )
 
     if (!fs.existsSync(targetAuthPath)) {
-      throw new Error(`Credentials untuk "${email}" tidak ditemukan.\nCoba hapus dan tambah ulang akun ini.`)
+      throw new Error(
+        `Credentials untuk "${email}" tidak ditemukan.\nCoba hapus dan tambah ulang akun ini.`
+      )
     }
 
-    // Backup akun aktif sekarang
-    const currentEmail = store.activeEmail
-    if (currentEmail) {
-      const currentDir = path.join(MANAGER_DIR, sanitizeEmail(currentEmail))
-      fs.mkdirSync(currentDir, { recursive: true })
-      if (fs.existsSync(AUTH_FILE)) {
-        copyFileAtomic(AUTH_FILE, path.join(currentDir, 'auth.json'))
-      }
-    }
+    // ✅ JANGAN backup auth.json aktif sekarang
+    // Alasan: Codex CLI mungkin sudah refresh token → file kita backup bisa stale
+    // Token lama yang di-restore akan langsung invalid (refresh_token_reused)
+    //
+    // Backup HANYA dilakukan saat user menambah akun (accounts:add)
+    // sehingga snapshot yang tersimpan adalah token fresh hasil login
 
-    // Tempel credentials akun target
+    // Tempel credentials akun target ke ~/.codex/auth.json
     fs.mkdirSync(CODEX_HOME, { recursive: true })
     copyFileAtomic(targetAuthPath, AUTH_FILE)
 
@@ -161,6 +164,27 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
     writeStore(store)
 
     return { success: true, switched: email }
+  })
+
+  // Panggil ini setelah Codex selesai refresh token
+  // supaya backup selalu punya token terbaru
+  ipcMain.handle('accounts:refreshBackup', async () => {
+    try {
+      if (!fs.existsSync(AUTH_FILE)) return { success: false }
+
+      const store = readStore()
+      const activeEmail = store.activeEmail
+      if (!activeEmail) return { success: false }
+
+      // Overwrite backup dengan auth.json terkini
+      const backupDir = path.join(MANAGER_DIR, sanitizeEmail(activeEmail))
+      fs.mkdirSync(backupDir, { recursive: true })
+      copyFileAtomic(AUTH_FILE, path.join(backupDir, 'auth.json'))
+
+      return { success: true, email: activeEmail }
+    } catch {
+      return { success: false }
+    }
   })
 
   ipcMain.handle('accounts:delete', async (_event, email: string) => {

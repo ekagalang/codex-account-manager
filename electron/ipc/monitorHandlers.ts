@@ -8,7 +8,6 @@ const CODEX_HOME = process.env.CODEX_HOME ?? path.join(os.homedir(), '.codex')
 const AUTH_FILE = path.join(CODEX_HOME, 'auth.json')
 const SESSION_TTL_DAYS = 8
 
-// Decode JWT payload tanpa verify
 function decodeJwt(token: string): Record<string, any> | null {
   try {
     const parts = token.split('.')
@@ -16,30 +15,21 @@ function decodeJwt(token: string): Record<string, any> | null {
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     const padded = base64 + '='.repeat((4 - base64.length % 4) % 4)
     return JSON.parse(Buffer.from(padded, 'base64').toString('utf-8'))
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
-// Helper fetch pakai Node https (tidak ada axios/fetch di main process)
-function httpsGet(url: string, headers: Record<string, string>): Promise<any> {
+function httpsGet(url: string, headers: Record<string, string>): Promise<{ status: number; body: any }> {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers }, (res) => {
       let data = ''
       res.on('data', chunk => { data += chunk })
       res.on('end', () => {
-        try {
-          resolve({ status: res.statusCode, body: JSON.parse(data) })
-        } catch {
-          resolve({ status: res.statusCode, body: data })
-        }
+        try { resolve({ status: res.statusCode ?? 0, body: JSON.parse(data) }) }
+        catch { resolve({ status: res.statusCode ?? 0, body: data }) }
       })
     })
     req.on('error', reject)
-    req.setTimeout(10000, () => {
-      req.destroy()
-      reject(new Error('Request timeout'))
-    })
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')) })
   })
 }
 
@@ -47,20 +37,17 @@ export function registerMonitorHandlers(ipcMain: IpcMain) {
 
   ipcMain.handle('monitor:sessionInfo', () => {
     if (!fs.existsSync(AUTH_FILE)) return { loggedIn: false }
-
     try {
-      const raw = fs.readFileSync(AUTH_FILE, 'utf-8')
-      const auth = JSON.parse(raw)
-
+      const auth = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'))
       const lastRefresh = auth.last_refresh ? new Date(auth.last_refresh) : null
       const now = new Date()
-      const ageMs = lastRefresh ? now.getTime() - lastRefresh.getTime() : null
-      const ageDays = ageMs !== null ? Math.floor(ageMs / (1000 * 60 * 60 * 24)) : null
+      const ageDays = lastRefresh
+        ? Math.floor((now.getTime() - lastRefresh.getTime()) / (1000 * 60 * 60 * 24))
+        : null
       const expiresInDays = ageDays !== null ? SESSION_TTL_DAYS - ageDays : null
 
       let planType: string | null = null
       let subscriptionUntil: string | null = null
-
       if (auth?.tokens?.access_token) {
         const payload = decodeJwt(auth.tokens.access_token)
         const openaiAuth = payload?.['https://api.openai.com/auth']
@@ -75,112 +62,159 @@ export function registerMonitorHandlers(ipcMain: IpcMain) {
         lastRefresh: lastRefresh?.toISOString() ?? null,
         ageDays,
         expiresInDays,
-        accountId: auth.tokens?.account_id ?? null,
         planType,
         subscriptionUntil,
         accessToken: auth.tokens?.access_token ?? null,
+        accountId: auth.tokens?.account_id ?? null,
       }
-    } catch {
-      return { loggedIn: false, error: 'Gagal membaca auth.json' }
-    }
+    } catch { return { loggedIn: false, error: 'Gagal membaca auth.json' } }
   })
 
-  // Fetch usage & rate limit dari OpenAI API
+  // Fetch quota dari endpoint yang sama yang dipakai Codex CLI
   ipcMain.handle('monitor:usage', async () => {
-    if (!fs.existsSync(AUTH_FILE)) {
-      return { error: 'Tidak ada sesi aktif' }
-    }
+    if (!fs.existsSync(AUTH_FILE)) return { error: 'Tidak ada sesi aktif' }
 
     try {
-      const raw = fs.readFileSync(AUTH_FILE, 'utf-8')
-      const auth = JSON.parse(raw)
+      const auth = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'))
       const accessToken = auth?.tokens?.access_token
+      const accountId = auth?.tokens?.account_id
 
-      if (!accessToken) {
-        return { error: 'Access token tidak ditemukan' }
+      if (!accessToken) return { error: 'Access token tidak ditemukan' }
+
+      const res = await httpsGet(
+        'https://chatgpt.com/backend-api/wham/usage',
+        {
+          'Authorization': `Bearer ${accessToken}`,
+          'ChatGPT-Account-Id': accountId ?? '',
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0',
+        }
+      )
+
+      if (res.status === 403) {
+        return { error: 'Akses ditolak (403). Coba login ulang via Accounts.' }
+      }
+      if (res.status === 401) {
+        return { error: 'Token expired (401). Silakan login ulang.' }
+      }
+      if (res.status !== 200) {
+        return { error: `Server error (${res.status})` }
       }
 
-      const headers = {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      }
+      // DEBUG — hapus setelah ketemu struktur response
+      console.log('[wham/usage] status:', res.status)
+      console.log('[wham/usage] raw response:', JSON.stringify(res.body, null, 2))
 
-      // Fetch usage bulan ini
-      const now = new Date()
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-        .toISOString().split('T')[0]
-      const today = now.toISOString().split('T')[0]
+      const data = res.body
+      const rateLimit = data.rate_limit
 
-      // Fetch subscription/limits info
-      const [usageRes, subRes] = await Promise.allSettled([
-        httpsGet(
-          `https://api.openai.com/v1/usage?date=${today}`,
-          headers
-        ),
-        httpsGet(
-          'https://api.openai.com/v1/dashboard/billing/subscription',
-          headers
-        ),
-      ])
+      // Parse window berdasarkan struktur asli response
+      const parseWindow = (w: any, label: string) => {
+        if (!w) return null
 
-      // Parse subscription data
-      let hardLimit: number | null = null
-      let softLimit: number | null = null
-      let planName: string | null = null
+        const usedPercent: number = w.used_percent ?? 0
+        const windowSeconds: number = w.limit_window_seconds ?? 0
+        const resetAfterSeconds: number = w.reset_after_seconds ?? 0
+        const resetAt: number = w.reset_at ?? null
 
-      if (subRes.status === 'fulfilled' && subRes.value.status === 200) {
-        const sub = subRes.value.body
-        hardLimit = sub.hard_limit_usd ?? null
-        softLimit = sub.soft_limit_usd ?? null
-        planName = sub.plan?.title ?? null
-      }
+        // Hitung used & remaining dari used_percent dan window duration
+        // Codex pakai "messages" sebagai unit, bukan request
+        // Estimasi dari used_percent saja karena limit absolut tidak diberikan
+        const usedPercentRounded = Math.round(usedPercent)
+        const remainingPercent = Math.max(0, 100 - usedPercentRounded)
 
-      // Fetch monthly usage (billing endpoint)
-      const billingRes = await httpsGet(
-        `https://api.openai.com/v1/dashboard/billing/usage?start_date=${startOfMonth}&end_date=${today}`,
-        headers
-      ).catch(() => null)
+        // Reset time dari unix timestamp
+        const resetAtISO = resetAt
+          ? new Date(resetAt * 1000).toISOString()
+          : null
 
-      let usedUsd: number | null = null
-      let remainingUsd: number | null = null
-      let usagePercent: number | null = null
+        // Window duration label
+        const windowHours = Math.round(windowSeconds / 3600)
 
-      if (billingRes?.status === 200) {
-        usedUsd = (billingRes.body.total_usage ?? 0) / 100 // cents → USD
-        if (hardLimit !== null) {
-          remainingUsd = hardLimit - usedUsd
-          usagePercent = Math.round((usedUsd / hardLimit) * 100)
+        return {
+          label,
+          usedPercent: usedPercentRounded,
+          remainingPercent,
+          windowHours,
+          resetAt: resetAtISO,
+          resetAfterSeconds,
+          allowed: rateLimit?.allowed ?? true,
+          limitReached: rateLimit?.limit_reached ?? false,
         }
       }
 
-      // Rate limit info — coba dari headers atau usage endpoint
-      let resetTime: string | null = null
-      let requestsUsed: number | null = null
-      let requestsLimit: number | null = null
-
-      if (usageRes.status === 'fulfilled' && usageRes.value.status === 200) {
-        const usage = usageRes.value.body
-        requestsUsed = usage?.data?.[0]?.n_requests ?? null
-        // Next reset = besok jam 00:00 UTC
-        const tomorrow = new Date(now)
-        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
-        tomorrow.setUTCHours(0, 0, 0, 0)
-        resetTime = tomorrow.toISOString()
-      }
+      // Credits info
+      const credits = data.credits ?? null
 
       return {
         success: true,
-        usedUsd: usedUsd !== null ? Math.round(usedUsd * 100) / 100 : null,
-        remainingUsd: remainingUsd !== null ? Math.round(remainingUsd * 100) / 100 : null,
-        hardLimit,
-        softLimit,
-        usagePercent,
-        planName,
-        requestsUsed,
-        requestsLimit,
-        resetTime,
-        periodStart: startOfMonth,
-        periodEnd: today,
+        raw: data,
+        allowed: rateLimit?.allowed ?? true,
+        limitReached: rateLimit?.limit_reached ?? false,
+        planType: data.plan_type ?? null,
+        email: data.email ?? null,
+        fiveHour: parseWindow(rateLimit?.primary_window, '5 jam'),
+        weekly: parseWindow(rateLimit?.secondary_window, 'Mingguan'),
+        credits: credits ? {
+          hasCredits: credits.has_credits,
+          unlimited: credits.unlimited,
+          balance: credits.balance,
+          approxLocalMessages: credits.approx_local_messages ?? null,
+          approxCloudMessages: credits.approx_cloud_messages ?? null,
+        } : null,
+      }
+    } catch (e: any) {
+      return { error: e.message }
+    }
+  })
+
+  // Fetch usage untuk akun spesifik berdasarkan auth.json di backup folder
+  ipcMain.handle('monitor:usageByEmail', async (_e, email: string) => {
+    try {
+      const sanitize = (e: string) => e.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const MANAGER_DIR = path.join(os.homedir(), '.codex-manager', 'accounts')
+      const authPath = path.join(MANAGER_DIR, sanitize(email), 'auth.json')
+
+      // Akun aktif — pakai auth.json langsung
+      const filePath = fs.existsSync(authPath) ? authPath : AUTH_FILE
+      if (!fs.existsSync(filePath)) return { error: 'No auth file' }
+
+      const auth = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+      const accessToken = auth?.tokens?.access_token
+      const accountId = auth?.tokens?.account_id
+
+      if (!accessToken) return { error: 'No access token' }
+
+      const res = await httpsGet(
+        'https://chatgpt.com/backend-api/wham/usage',
+        {
+          'Authorization': `Bearer ${accessToken}`,
+          'ChatGPT-Account-Id': accountId ?? '',
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0',
+        }
+      )
+
+      if (res.status !== 200) return { error: `HTTP ${res.status}` }
+
+      const rateLimit = res.body?.rate_limit
+      if (!rateLimit) return { error: 'No rate limit data' }
+
+      const primary = rateLimit.primary_window
+      const secondary = rateLimit.secondary_window
+
+      return {
+        success: true,
+        allowed: rateLimit.allowed ?? true,
+        limitReached: rateLimit.limit_reached ?? false,
+        fiveHour: primary ? {
+          usedPercent: Math.round(primary.used_percent ?? 0),
+          resetAfterSeconds: primary.reset_after_seconds ?? 0,
+        } : null,
+        weekly: secondary ? {
+          usedPercent: Math.round(secondary.used_percent ?? 0),
+          resetAfterSeconds: secondary.reset_after_seconds ?? 0,
+        } : null,
       }
     } catch (e: any) {
       return { error: e.message }
