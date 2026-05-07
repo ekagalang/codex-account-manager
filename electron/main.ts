@@ -10,7 +10,7 @@ import { startNotificationScheduler, stopNotificationScheduler, triggerCheck } f
 import { setupAutoUpdater } from './updater'
 
 const isDev = process.env.NODE_ENV === 'development'
-const DEV_PORT = process.env.DEV_PORT || '5174'
+const DEV_PORT = process.env.DEV_PORT || '2301'
 
 let mainWindow: BrowserWindow | null = null
 let isQuitting = false
@@ -21,6 +21,7 @@ function createWindow() {
     height: 600,
     minWidth: 720,
     minHeight: 500,
+    icon: path.join(__dirname, '../assets/icon.png'),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

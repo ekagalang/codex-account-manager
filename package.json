@@ -5,12 +5,12 @@
     "url": "https://ekagalang.my.id"
   },
   "name": "codex-account-manager",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Switch Codex CLI accounts instantly",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite --port 5174",
-    "electron": "wait-on http://localhost:5174 && cross-env NODE_ENV=development DEV_PORT=5174 electron .",
+    "dev": "vite --port 2301",
+    "electron": "wait-on http://localhost:2301 && cross-env NODE_ENV=development DEV_PORT=2301 electron .",
     "start": "concurrently \"npm run dev\" \"npm run electron\"",
     "build:vite": "vite build",
     "build:electron": "tsc -p tsconfig.node.json",

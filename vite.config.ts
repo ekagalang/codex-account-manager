@@ -20,7 +20,7 @@ export default defineConfig({
     outDir: 'dist',
   },
   server: {
-    port: 5174,
-    strictPort: false,
+    port: 2301,
+    strictPort: true,
   },
 })

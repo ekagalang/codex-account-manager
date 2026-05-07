@@ -20,8 +20,8 @@ module.exports = {
   // Publish ke GitHub Releases
   publish: {
     provider: 'github',
-    owner: 'ekagalang',              // ← ganti dengan GitHub username kamu
-    repo: 'codex-account-manager',   // ← ganti dengan nama repo
+    owner: 'ekagalang',
+    repo: 'codex-account-manager',
     releaseType: 'release',
   },
   win: {
