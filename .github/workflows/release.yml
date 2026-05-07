@@ -4,10 +4,17 @@ on:
   push:
     tags:
       - 'v*'
+  release:
+    types:
+      - published
+      - edited
 
 jobs:
   build-windows:
     runs-on: windows-latest
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref_name, 'v')) ||
+      (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v'))
 
     permissions:
       contents: write
@@ -30,6 +37,25 @@ jobs:
 
       - name: Generate icons
         run: node assets/create-ico.js
+
+      - name: Resolve version from tag
+        id: release_meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Sync package version with tag
+        env:
+          APP_VERSION: ${{ steps.release_meta.outputs.version }}
+        run: |
+          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.env.APP_VERSION;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
 
       - name: Build and publish to GitHub Releases
         env:
