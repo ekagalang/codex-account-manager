@@ -3,11 +3,14 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'  # Trigger hanya saat push tag seperti v1.0.0, v1.1.0
+      - 'v*'
 
 jobs:
   build-windows:
     runs-on: windows-latest
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -16,25 +19,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build & Package
-        env:
-          # Skip code signing
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          # GitHub token untuk publish release
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run dist:win
+      - name: Install icon tools
+        run: npm install sharp png-to-ico --no-save
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: |
-            dist/*.exe
-            dist/*.blockmap
-            dist/latest.yml
+      - name: Generate icons
+        run: node assets/create-ico.js
+
+      - name: Build and publish to GitHub Releases
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist:win -- --publish always
