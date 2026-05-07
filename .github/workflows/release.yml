@@ -12,9 +12,7 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    if: |
-      (github.event_name == 'push' && startsWith(github.ref_name, 'v')) ||
-      (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v'))
+    if: startsWith(github.event.release.tag_name || github.ref_name, 'v')
 
     permissions:
       contents: write
@@ -41,12 +39,10 @@ jobs:
       - name: Resolve version from tag
         id: release_meta
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-          else
-            TAG="${GITHUB_REF_NAME}"
-          fi
+          TAG="${RELEASE_TAG}"
           VERSION="${TAG#v}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
@@ -55,7 +51,13 @@ jobs:
         env:
           APP_VERSION: ${{ steps.release_meta.outputs.version }}
         run: |
-          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.env.APP_VERSION;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
+          node <<'NODE'
+          const fs = require('fs');
+          const packagePath = 'package.json';
+          const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          packageJson.version = process.env.APP_VERSION;
+          fs.writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+          NODE
 
       - name: Build and publish to GitHub Releases
         env:
