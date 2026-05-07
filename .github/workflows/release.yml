@@ -12,7 +12,7 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    if: startsWith(github.event.release.tag_name || github.ref_name, 'v')
+    if: startsWith(github.event.release.tag_name != '' && github.event.release.tag_name || github.ref_name, 'v')
 
     permissions:
       contents: write
@@ -40,7 +40,7 @@ jobs:
         id: release_meta
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name != '' && github.event.release.tag_name || github.ref_name }}
         run: |
           TAG="${RELEASE_TAG}"
           VERSION="${TAG#v}"
@@ -50,14 +50,7 @@ jobs:
       - name: Sync package version with tag
         env:
           APP_VERSION: ${{ steps.release_meta.outputs.version }}
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const packagePath = 'package.json';
-          const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-          packageJson.version = process.env.APP_VERSION;
-          fs.writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
-          NODE
+        run: npm pkg set version="${APP_VERSION}"
 
       - name: Build and publish to GitHub Releases
         env:
