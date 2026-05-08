@@ -86,6 +86,7 @@ declare global {
       getConfig:        () => Promise<{ exists: boolean; isFileMode?: boolean }>
       ensureFileMode:   () => Promise<{ success: boolean }>
       openExternal:     (url: string) => Promise<void>
+      getAppMeta:       () => Promise<{ version: string }>
       getSettings:      () => Promise<AppSettings>
       setSettings:      (patch: Partial<AppSettings>) => Promise<AppSettings>
       getCodexConfig:   () => Promise<{ exists: boolean; isFileMode: boolean; raw: string }>

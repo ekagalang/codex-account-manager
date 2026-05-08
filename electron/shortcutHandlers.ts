@@ -98,16 +98,17 @@ function createQuickSwitchWindow(getMainWindow: () => BrowserWindow | null) {
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          background: #fff;
-          border: 1px solid #e4e4e7;
+          font-family: Inter, 'Segoe UI', sans-serif;
+          background: #09090b;
+          border: 1px solid #27272a;
           border-radius: 12px;
           overflow: hidden;
           user-select: none;
+          color: #f4f4f5;
         }
         .header {
           padding: 10px 14px 8px;
-          border-bottom: 1px solid #f4f4f5;
+          border-bottom: 1px solid #27272a;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -115,13 +116,13 @@ function createQuickSwitchWindow(getMainWindow: () => BrowserWindow | null) {
         .header-title {
           font-size: 11px;
           font-weight: 600;
-          color: #71717a;
+          color: #e4e4e7;
           letter-spacing: .06em;
           text-transform: uppercase;
         }
         .header-hint {
           font-size: 10px;
-          color: #a1a1aa;
+          color: #71717a;
         }
         .accounts { padding: 6px; }
         .account-item {
@@ -131,17 +132,24 @@ function createQuickSwitchWindow(getMainWindow: () => BrowserWindow | null) {
           padding: 8px 10px;
           border-radius: 8px;
           cursor: pointer;
-          transition: background .1s;
+          border: 1px solid transparent;
+          transition: background .15s, border-color .15s;
           margin-bottom: 2px;
         }
-        .account-item:hover { background: #f4f4f5; }
-        .account-item.active { background: #f4f4f5; }
+        .account-item:hover {
+          background: #18181b;
+          border-color: #3f3f46;
+        }
+        .account-item.active {
+          background: rgba(34, 211, 238, 0.12);
+          border-color: rgba(34, 211, 238, 0.35);
+        }
         .avatar {
           width: 32px;
           height: 32px;
           border-radius: 50%;
-          background: #e4e4e7;
-          color: #52525b;
+          background: #27272a;
+          color: #e4e4e7;
           font-size: 11px;
           font-weight: 600;
           display: flex;
@@ -149,12 +157,12 @@ function createQuickSwitchWindow(getMainWindow: () => BrowserWindow | null) {
           justify-content: center;
           flex-shrink: 0;
         }
-        .active .avatar { background: #18181b; color: #fff; }
+        .active .avatar { background: rgba(34, 211, 238, 0.2); color: #a5f3fc; }
         .info { flex: 1; min-width: 0; }
         .name {
           font-size: 13px;
           font-weight: 500;
-          color: #18181b;
+          color: #f4f4f5;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -171,19 +179,20 @@ function createQuickSwitchWindow(getMainWindow: () => BrowserWindow | null) {
           font-size: 10px;
           padding: 2px 7px;
           border-radius: 20px;
-          background: #18181b;
-          color: #fff;
+          background: rgba(34, 211, 238, 0.2);
+          color: #a5f3fc;
+          border: 1px solid rgba(34, 211, 238, 0.35);
           flex-shrink: 0;
         }
         .badge.inactive {
           background: transparent;
           color: #a1a1aa;
-          border: 1px solid #e4e4e7;
+          border: 1px solid #3f3f46;
         }
         .account-item:hover .badge.inactive {
-          background: #f4f4f5;
-          color: #52525b;
-          border-color: #d4d4d8;
+          background: #27272a;
+          color: #d4d4d8;
+          border-color: #52525b;
         }
       </style>
     </head>
@@ -236,7 +245,7 @@ export function registerGlobalShortcut(
       currentShortcut = accelerator
       console.log('[Shortcut] Registered:', accelerator)
     } else {
-      console.warn('[Shortcut] Failed to register:', accelerator, '— mungkin sudah dipakai app lain')
+      console.warn('[Shortcut] Failed to register:', accelerator, '— it may already be used by another app')
     }
 
     return ok

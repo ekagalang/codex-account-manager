@@ -4,10 +4,31 @@
 /* Custom CSS variables untuk theming app */
 @layer base {
   :root {
-    --sidebar-width: 220px;
+    --sidebar-width: 200px;
+    --accent-cyan: 34 211 238;
+    --app-bg: #f5f7fb;
+    --app-fg: #18181b;
+  }
+
+  html, body, #root {
+    height: 100%;
+  }
+
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+    --app-bg: #09090b;
+    --app-fg: #f4f4f5;
   }
 
   body {
+    margin: 0;
+    font-family: Inter, "Segoe UI", "SF Pro Text", "SF Pro Display", system-ui, -apple-system, sans-serif;
+    background: var(--app-bg);
+    color: var(--app-fg);
     /* Prevent text selection saat klik cepat (UX desktop) */
     user-select: none;
     -webkit-user-select: none;
@@ -30,4 +51,51 @@
     background: oklch(0.7 0 0 / 0.3);
     border-radius: 2px;
   }
+
+  *:focus-visible {
+    outline: 2px solid rgb(var(--accent-cyan) / 0.6);
+    outline-offset: 2px;
+  }
+
+  .app-shell {
+    background: var(--app-bg);
+    color: var(--app-fg);
+  }
+
+  /* Light mode remap for existing zinc utilities used across pages */
+  html:not(.dark) .app-shell [class*="bg-zinc-950"] { background-color: #ffffff !important; }
+  html:not(.dark) .app-shell [class*="bg-zinc-900"] { background-color: #f8fafc !important; }
+  html:not(.dark) .app-shell [class*="bg-zinc-800"] { background-color: #f1f5f9 !important; }
+  html:not(.dark) .app-shell [class*="border-zinc-800"],
+  html:not(.dark) .app-shell [class*="border-zinc-700"] { border-color: #e4e4e7 !important; }
+  html:not(.dark) .app-shell [class*="text-zinc-100"],
+  html:not(.dark) .app-shell [class*="text-zinc-200"] { color: #111827 !important; }
+  html:not(.dark) .app-shell [class*="text-zinc-300"],
+  html:not(.dark) .app-shell [class*="text-zinc-400"] { color: #334155 !important; }
+  html:not(.dark) .app-shell [class*="text-zinc-500"],
+  html:not(.dark) .app-shell [class*="text-zinc-600"] { color: #475569 !important; }
+
+  /* Light mode accent text contrast */
+  html:not(.dark) .app-shell .text-cyan-100,
+  html:not(.dark) .app-shell .text-cyan-200,
+  html:not(.dark) .app-shell .text-cyan-300 { color: #0e7490 !important; }
+  html:not(.dark) .app-shell .text-emerald-200,
+  html:not(.dark) .app-shell .text-emerald-300,
+  html:not(.dark) .app-shell .text-green-100,
+  html:not(.dark) .app-shell .text-green-200,
+  html:not(.dark) .app-shell .text-green-300,
+  html:not(.dark) .app-shell .text-green-500 { color: #047857 !important; }
+  html:not(.dark) .app-shell .text-amber-200,
+  html:not(.dark) .app-shell .text-amber-300 { color: #b45309 !important; }
+  html:not(.dark) .app-shell .text-red-200,
+  html:not(.dark) .app-shell .text-red-300 { color: #b91c1c !important; }
+
+  /* Light mode hover/readability for accent-only icon buttons */
+  html:not(.dark) .app-shell .hover\:text-cyan-300:hover { color: #0e7490 !important; }
+  html:not(.dark) .app-shell .hover\:text-red-100:hover { color: #991b1b !important; }
+  html:not(.dark) .app-shell .hover\:text-emerald-100:hover { color: #065f46 !important; }
+
+  /* Improve readability for muted labels in dark mode */
+  html.dark .app-shell [class*="text-zinc-500"] { color: #a1a1aa !important; }
+  html.dark .app-shell [class*="text-zinc-600"] { color: #71717a !important; }
 }

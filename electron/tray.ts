@@ -127,7 +127,7 @@ export function createTray(getWindow: () => BrowserWindow | null) {
           if (Notification.isSupported()) {
             new Notification({
               title: 'Codex Account Switched',
-              body: `Active: ${acc.email}\n\nRestart Codex CLI agar perubahan berlaku:\n1. Ctrl+C di terminal\n2. Jalankan: codex`,
+              body: `Active: ${acc.email}\n\nRestart Codex CLI to apply changes:\n1. Ctrl+C in terminal\n2. Run: codex`,
               silent: false,
             }).show()
           }
@@ -143,7 +143,7 @@ export function createTray(getWindow: () => BrowserWindow | null) {
           if (Notification.isSupported()) {
             new Notification({
               title: 'Switch Failed',
-              body: `Gagal switch ke ${acc.email}.\nCredentials tidak ditemukan.`,
+              body: `Failed to switch to ${acc.email}.\nCredentials were not found.`,
               silent: true,
             }).show()
           }

@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // --- Shell ---
   openExternal:               (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  getAppMeta:                            () => ipcRenderer.invoke('app:meta'),
 
   // Tray events → renderer
   onTraySwitch: (cb: (email: string) => void) => ipcRenderer.on('tray:account-switched', (_e, email) => cb(email)),

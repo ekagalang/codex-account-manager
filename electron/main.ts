@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, nativeTheme } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, nativeTheme, Menu } from 'electron'
 import path from 'path'
 import { registerAccountHandlers } from './ipc/accountHandlers'
 import { registerMonitorHandlers } from './ipc/monitorHandlers'
@@ -23,6 +23,7 @@ function createWindow() {
     minHeight: 500,
     icon: path.join(__dirname, '../assets/icon.png'),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -33,9 +34,12 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL(`http://localhost:${DEV_PORT}`)
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+  }
+
+  if (process.platform !== 'darwin') {
+    mainWindow.setMenuBarVisibility(false)
   }
 
   mainWindow.webContents.on('did-finish-load', () => {
@@ -58,6 +62,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  if (process.platform !== 'darwin') {
+    Menu.setApplicationMenu(null)
+  }
+
   registerAccountHandlers(ipcMain)
   registerMonitorHandlers(ipcMain)
   registerConfigHandlers(ipcMain)
@@ -66,6 +74,10 @@ app.whenReady().then(() => {
   ipcMain.handle('shell:openExternal', (_e, url: string) => {
     shell.openExternal(url)
   })
+
+  ipcMain.handle('app:meta', () => ({
+    version: app.getVersion(),
+  }))
 
   // Update tray setelah switch akun
   ipcMain.on('tray:update', () => updateTray())
@@ -108,8 +120,8 @@ app.whenReady().then(() => {
     console.log('[Test] Notification supported:', Notification.isSupported())
     if (Notification.isSupported()) {
       new Notification({
-        title: 'Test Notifikasi',
-        body: 'Notifikasi Codex Account Manager berjalan dengan baik!',
+        title: 'Test Notification',
+        body: 'Codex Account Manager notifications are working properly!',
       }).show()
       return { supported: true }
     }

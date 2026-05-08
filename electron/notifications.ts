@@ -78,22 +78,22 @@ function checkSessionExpiry() {
   if (expiresInDays <= 0) {
     notifyOnce(
       'session-expired',
-      '⚠️ Sesi Codex Expired',
-      'Sesi Codex CLI kamu sudah expired.\nJalankan: codex login',
+      '⚠️ Codex Session Expired',
+      'Your Codex CLI session has expired.\nRun: codex login',
       true
     )
   } else if (expiresInDays === 1) {
     notifyOnce(
       'session-expiry-1d',
-      '⏰ Sesi Codex Hampir Expired',
-      'Sesi akan expired besok.\nSegera jalankan: codex login',
+      '⏰ Codex Session Expiring Soon',
+      'Session will expire tomorrow.\nRun: codex login soon.',
       true
     )
   } else if (expiresInDays === 2) {
     notifyOnce(
       'session-expiry-2d',
-      '⏰ Sesi Codex Hampir Expired',
-      `Sesi akan expired dalam ${expiresInDays} hari.\nJalankan: codex login`,
+      '⏰ Codex Session Expiring Soon',
+      `Session will expire in ${expiresInDays} days.\nRun: codex login`,
       false
     )
   }
@@ -144,8 +144,8 @@ async function checkQuotaUsage() {
     if (primary?.used_percent >= threshold) {
       notifyOnce(
         `quota-5h-${Math.floor(primary.used_percent / 10) * 10}`,
-        '⚡ Quota 5 Jam Hampir Habis',
-        `Usage 5 jam: ${Math.round(primary.used_percent)}%\nReset dalam ${Math.round(primary.reset_after_seconds / 60)} menit`,
+        '⚡ 5-Hour Quota Running Low',
+        `5-hour usage: ${Math.round(primary.used_percent)}%\nResets in ${Math.round(primary.reset_after_seconds / 60)} minutes`,
         primary.used_percent >= 90
       )
     }
@@ -154,8 +154,8 @@ async function checkQuotaUsage() {
     if (secondary?.used_percent >= threshold) {
       notifyOnce(
         `quota-weekly-${Math.floor(secondary.used_percent / 10) * 10}`,
-        '📅 Quota Mingguan Hampir Habis',
-        `Usage mingguan: ${Math.round(secondary.used_percent)}%\nReset dalam ${Math.round(secondary.reset_after_seconds / 3600)} jam`,
+        '📅 Weekly Quota Running Low',
+        `Weekly usage: ${Math.round(secondary.used_percent)}%\nResets in ${Math.round(secondary.reset_after_seconds / 3600)} hours`,
         secondary.used_percent >= 90
       )
     }
@@ -164,8 +164,8 @@ async function checkQuotaUsage() {
     if (result.rate_limit.limit_reached) {
       notifyOnce(
         'quota-limit-reached',
-        '🚫 Rate Limit Tercapai',
-        'Codex CLI tidak bisa digunakan sementara.\nTunggu reset quota.',
+        '🚫 Rate Limit Reached',
+        'Codex CLI is temporarily unavailable.\nWait for quota reset.',
         true
       )
     }

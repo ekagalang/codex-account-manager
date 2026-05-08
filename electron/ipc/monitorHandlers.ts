@@ -67,19 +67,19 @@ export function registerMonitorHandlers(ipcMain: IpcMain) {
         accessToken: auth.tokens?.access_token ?? null,
         accountId: auth.tokens?.account_id ?? null,
       }
-    } catch { return { loggedIn: false, error: 'Gagal membaca auth.json' } }
+    } catch { return { loggedIn: false, error: 'Failed to read auth.json' } }
   })
 
   // Fetch quota dari endpoint yang sama yang dipakai Codex CLI
   ipcMain.handle('monitor:usage', async () => {
-    if (!fs.existsSync(AUTH_FILE)) return { error: 'Tidak ada sesi aktif' }
+    if (!fs.existsSync(AUTH_FILE)) return { error: 'No active session' }
 
     try {
       const auth = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'))
       const accessToken = auth?.tokens?.access_token
       const accountId = auth?.tokens?.account_id
 
-      if (!accessToken) return { error: 'Access token tidak ditemukan' }
+      if (!accessToken) return { error: 'Access token not found' }
 
       const res = await httpsGet(
         'https://chatgpt.com/backend-api/wham/usage',
@@ -92,10 +92,10 @@ export function registerMonitorHandlers(ipcMain: IpcMain) {
       )
 
       if (res.status === 403) {
-        return { error: 'Akses ditolak (403). Coba login ulang via Accounts.' }
+        return { error: 'Access denied (403). Try signing in again from Accounts.' }
       }
       if (res.status === 401) {
-        return { error: 'Token expired (401). Silakan login ulang.' }
+        return { error: 'Token expired (401). Please sign in again.' }
       }
       if (res.status !== 200) {
         return { error: `Server error (${res.status})` }
@@ -153,8 +153,8 @@ export function registerMonitorHandlers(ipcMain: IpcMain) {
         limitReached: rateLimit?.limit_reached ?? false,
         planType: data.plan_type ?? null,
         email: data.email ?? null,
-        fiveHour: parseWindow(rateLimit?.primary_window, '5 jam'),
-        weekly: parseWindow(rateLimit?.secondary_window, 'Mingguan'),
+        fiveHour: parseWindow(rateLimit?.primary_window, '5-hour'),
+        weekly: parseWindow(rateLimit?.secondary_window, 'Weekly'),
         credits: credits ? {
           hasCredits: credits.has_credits,
           unlimited: credits.unlimited,

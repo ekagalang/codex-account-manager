@@ -128,6 +128,14 @@ npm run start
 npm run dist:win
 ```
 
+### Uninstall Bersih (Windows)
+
+Uninstall lewat **Settings → Apps → Codex Account Manager** akan menghapus:
+- File instalasi aplikasi + shortcut
+- Data lokal app (`%APPDATA%`)
+- Cache updater (`%LOCALAPPDATA%`)
+- Backup akun Codex Manager (`%USERPROFILE%\.codex-manager`)
+
 ---
 
 ## Development
@@ -215,6 +223,11 @@ GitHub Actions akan:
 1. Build `.exe` di Windows runner
 2. Upload ke GitHub Releases
 3. App yang sudah terinstall akan detect update otomatis
+
+> Untuk auto-update `electron-updater`, pastikan asset ini ada di setiap GitHub Release:
+> - `latest.yml`
+> - `Codex Account Manager-Setup-<version>.exe`
+> - `Codex Account Manager-Setup-<version>.exe.blockmap`
 
 ---
 

@@ -101,13 +101,13 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
 
   ipcMain.handle('accounts:add', async (_event, name: string, email: string) => {
     if (!fs.existsSync(AUTH_FILE)) {
-      throw new Error('Tidak ada sesi aktif.\n\nLogin dulu via: codex login')
+      throw new Error('No active session.\n\nPlease sign in first with: codex login')
     }
 
     const store = readStore()
 
     if (store.accounts.find(a => a.email === email)) {
-      throw new Error(`Akun "${email}" sudah tersimpan.`)
+      throw new Error(`Account "${email}" is already saved.`)
     }
 
     const accountDir = path.join(MANAGER_DIR, sanitizeEmail(email))
@@ -142,7 +142,7 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
 
     if (!fs.existsSync(targetAuthPath)) {
       throw new Error(
-        `Credentials untuk "${email}" tidak ditemukan.\nCoba hapus dan tambah ulang akun ini.`
+        `Credentials for "${email}" were not found.\nTry deleting and re-adding this account.`
       )
     }
 
@@ -191,7 +191,7 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
     const store = readStore()
 
     if (store.activeEmail === email) {
-      throw new Error('Tidak bisa menghapus akun yang sedang aktif.\nSwitch ke akun lain dulu.')
+      throw new Error('Cannot delete the currently active account.\nSwitch to another account first.')
     }
 
     const accountDir = path.join(MANAGER_DIR, sanitizeEmail(email))
@@ -280,7 +280,7 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
         if (success) {
           resolve({ success: true })
         } else {
-          reject(new Error(msg ?? 'Login gagal'))
+          reject(new Error(msg ?? 'Login failed'))
         }
       }
 
@@ -305,22 +305,22 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
         if (code === 0) {
           settle(true)
         } else if (!settled) {
-          settle(false, `codex login gagal (exit code ${code})\n\n${output}`)
+          settle(false, `codex login failed (exit code ${code})\n\n${output}`)
         }
       })
 
       child.on('error', (err: Error) => {
         settle(false,
-          `Codex CLI tidak ditemukan di PATH.\n\n` +
-          `Pastikan sudah install:\nnpm install -g @openai/codex\n\n` +
-          `Lalu coba login manual dulu:\ncodex login\n\n` +
+          `Codex CLI was not found in PATH.\n\n` +
+          `Make sure it is installed:\nnpm install -g @openai/codex\n\n` +
+          `Then try manual login first:\ncodex login\n\n` +
           `Detail: ${err.message}`
         )
       })
 
       // Timeout 5 menit — kalau user keburu lama
       setTimeout(() => {
-        if (!settled) settle(false, 'Login timeout (5 menit). Coba lagi.')
+        if (!settled) settle(false, 'Login timeout (5 minutes). Please try again.')
       }, 5 * 60 * 1000)
     })
   })
