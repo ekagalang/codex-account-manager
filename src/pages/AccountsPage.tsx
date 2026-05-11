@@ -545,11 +545,11 @@ export default function AccountsPage() {
     // Listen switch dari system tray
     window.electronAPI.onTraySwitch((email) => {
       load()
-      showSuccess(email)
+      showSwitchSuccess(email)
     })
   }, [load])
 
-  const showSuccess = (email: string) => {
+  const showSwitchSuccess = (email: string) => {
     setSwitchedEmail(email)
     // Auto-dismiss setelah 10 detik
     setTimeout(() => setSwitchedEmail(null), 10_000)
@@ -561,7 +561,7 @@ export default function AccountsPage() {
     try {
       await window.electronAPI.switchAccount(email)
       await load()
-      showSuccess(email)
+      showSwitchSuccess(email)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -572,7 +572,6 @@ export default function AccountsPage() {
   const handleAdd = async (name: string, email: string) => {
     await window.electronAPI.addAccount(name, email)
     await load()
-    showSuccess(`Account "${name}" saved successfully`)
   }
 
   const handleDelete = async (email: string) => {
@@ -582,7 +581,6 @@ export default function AccountsPage() {
     try {
       await window.electronAPI.deleteAccount(email)
       await load()
-      showSuccess('Account deleted successfully')
     } catch (e: any) {
       setError(e.message)
     }

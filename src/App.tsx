@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import AccountsPage from '@/pages/AccountsPage'
 import MonitorPage from '@/pages/MonitorPage'
@@ -53,7 +53,7 @@ export default function App() {
     }
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyTheme(themeMode)
     if (themeMode !== 'system') return
     return onSystemThemeChanged(() => applyTheme('system'))

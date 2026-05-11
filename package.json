@@ -5,7 +5,7 @@
     "url": "https://ekagalang.my.id"
   },
   "name": "codex-account-manager",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Switch Codex CLI accounts instantly",
   "main": "dist-electron/main.js",
   "scripts": {

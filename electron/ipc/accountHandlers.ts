@@ -105,9 +105,27 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
     }
 
     const store = readStore()
+    const activeEmailBeforeAdd = store.activeEmail
 
     if (store.accounts.find(a => a.email === email)) {
       throw new Error(`Account "${email}" is already saved.`)
+    }
+
+    let activeBackupPath: string | null = null
+    if (activeEmailBeforeAdd) {
+      activeBackupPath = path.join(
+        MANAGER_DIR,
+        sanitizeEmail(activeEmailBeforeAdd),
+        'auth.json'
+      )
+
+      if (!fs.existsSync(activeBackupPath)) {
+        throw new Error(
+          `Cannot save account without switching session.\n` +
+          `Backup for active account "${activeEmailBeforeAdd}" was not found.\n\n` +
+          `Please switch to another saved account first, then try again.`
+        )
+      }
     }
 
     const accountDir = path.join(MANAGER_DIR, sanitizeEmail(email))
@@ -121,7 +139,11 @@ export function registerAccountHandlers(ipcMain: IpcMain) {
       lastUsed: new Date().toISOString(),
     })
 
-    if (!store.activeEmail) store.activeEmail = email
+    // Menambah akun tidak boleh mengubah akun aktif.
+    if (activeBackupPath) {
+      fs.mkdirSync(CODEX_HOME, { recursive: true })
+      copyFileAtomic(activeBackupPath, AUTH_FILE)
+    }
 
     writeStore(store)
     return { success: true }

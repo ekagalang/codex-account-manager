@@ -1,5 +1,6 @@
 /* Tailwind v4 — cukup satu baris ini, tidak perlu @tailwind directives */
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Custom CSS variables untuk theming app */
 @layer base {
